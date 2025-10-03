@@ -49,11 +49,11 @@ var app = builder.Build();
 // Exception handling middleware (must be first)
 app.UseExceptionHandling();
 
+// Serilog request logging (must be early to capture all requests)
+app.UseSerilogRequestLogging();
+
 // Correlation ID middleware
 app.UseCorrelationId();
-
-// Serilog request logging
-app.UseSerilogRequestLogging();
 
 // HTTPS redirection
 app.UseHttpsRedirection();
@@ -72,7 +72,7 @@ app.MapHealthChecks("/health", new Microsoft.AspNetCore.Diagnostics.HealthChecks
 
 app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
-    Predicate = _ => true // Include all health checks
+    Predicate = hc => hc.Name == "database" || hc.Name == "openrouter" // Only critical dependencies
 });
 
 // Swagger UI (Development only)

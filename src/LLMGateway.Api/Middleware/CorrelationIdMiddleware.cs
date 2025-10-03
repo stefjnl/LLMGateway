@@ -1,3 +1,5 @@
+using Serilog.Context;
+
 namespace LLMGateway.Api.Middleware;
 
 public class CorrelationIdMiddleware
@@ -25,6 +27,9 @@ public class CorrelationIdMiddleware
 
         // Add to request context for logging
         context.Items["CorrelationId"] = correlationId;
+
+        // Add to Serilog LogContext for structured logging
+        LogContext.PushProperty("CorrelationId", correlationId);
 
         await _next(context);
     }

@@ -66,6 +66,7 @@ Thumbs.db
 
 # User secrets
 **/appsettings.Development.json
+**/appsettings.secrets.json
 secrets.json
 
 # Database

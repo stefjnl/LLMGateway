@@ -1,4 +1,5 @@
 using LLMGateway.Domain.Entities;
+using LLMGateway.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -39,44 +40,37 @@ public class RequestLogConfiguration : IEntityTypeConfiguration<RequestLog>
             .HasColumnName("was_fallback")
             .IsRequired();
 
-        // Map ModelUsed value object
-        builder.OwnsOne(rl => rl.ModelUsed, mb =>
-        {
-            mb.Property(m => m.Value)
-                .HasColumnName("model_used")
-                .HasMaxLength(200)
-                .IsRequired();
+        // Map ModelUsed value object using conversion
+        builder.Property(rl => rl.ModelUsed)
+            .HasColumnName("model_used")
+            .HasMaxLength(300)
+            .HasConversion(
+                v => v.Value, // Store the full model name (e.g., "z-ai/glm-4.6")
+                v => ModelName.From(v)) // Convert back to ModelName
+            .IsRequired();
 
-            mb.Property(m => m.Provider)
-                .HasColumnName("model_provider")
-                .HasMaxLength(100)
-                .IsRequired();
-        });
+        // Map value objects using conversions (simpler for owned types)
+        builder.Property(rl => rl.InputTokens)
+            .HasColumnName("input_tokens")
+            .HasConversion(
+                v => v.Value,
+                v => TokenCount.From(v))
+            .IsRequired();
 
-        // Map InputTokens value object
-        builder.OwnsOne(rl => rl.InputTokens, mb =>
-        {
-            mb.Property(t => t.Value)
-                .HasColumnName("input_tokens")
-                .IsRequired();
-        });
+        builder.Property(rl => rl.OutputTokens)
+            .HasColumnName("output_tokens")
+            .HasConversion(
+                v => v.Value,
+                v => TokenCount.From(v))
+            .IsRequired();
 
-        // Map OutputTokens value object
-        builder.OwnsOne(rl => rl.OutputTokens, mb =>
-        {
-            mb.Property(t => t.Value)
-                .HasColumnName("output_tokens")
-                .IsRequired();
-        });
-
-        // Map EstimatedCost value object
-        builder.OwnsOne(rl => rl.EstimatedCost, mb =>
-        {
-            mb.Property(c => c.ValueUsd)
-                .HasColumnName("estimated_cost_usd")
-                .HasColumnType("decimal(18,6)")
-                .IsRequired();
-        });
+        builder.Property(rl => rl.EstimatedCost)
+            .HasColumnName("estimated_cost_usd")
+            .HasColumnType("decimal(18,6)")
+            .HasConversion(
+                v => v.ValueUsd,
+                v => CostAmount.FromUsd(v))
+            .IsRequired();
 
         // Indexes for performance
         builder.HasIndex(rl => rl.Timestamp)

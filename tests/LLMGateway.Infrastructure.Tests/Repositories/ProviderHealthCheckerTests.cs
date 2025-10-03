@@ -56,7 +56,7 @@ public class ProviderHealthCheckerTests
     {
         // Arrange
         _httpMessageHandlerMock.Protected()
-            .Setup("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
             .ThrowsAsync(new TaskCanceledException());
 
         // Act
@@ -99,7 +99,7 @@ public class ProviderHealthCheckerTests
         }
 
         _httpMessageHandlerMock.Protected()
-            .Setup("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
+            .Setup<Task<HttpResponseMessage>>("SendAsync", ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(response);
     }
 }

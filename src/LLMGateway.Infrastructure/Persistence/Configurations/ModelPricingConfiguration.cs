@@ -1,6 +1,8 @@
 using LLMGateway.Domain.Entities;
+using LLMGateway.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using static Microsoft.EntityFrameworkCore.EF;
 
 namespace LLMGateway.Infrastructure.Persistence.Configurations;
@@ -43,19 +45,14 @@ public class ModelPricingConfiguration : IEntityTypeConfiguration<ModelPricing>
             .HasColumnName("updated_at")
             .IsRequired();
 
-        // Map Model value object
-        builder.OwnsOne(mp => mp.Model, mb =>
-        {
-            mb.Property(m => m.Value)
-                .HasColumnName("model_name")
-                .HasMaxLength(200)
-                .IsRequired();
-
-            mb.Property(m => m.Provider)
-                .HasColumnName("model_provider")
-                .HasMaxLength(100)
-                .IsRequired();
-        });
+        // Map Model value object - store full model name (provider/model format)
+        builder.Property(mp => mp.Model)
+            .HasColumnName("model_name")
+            .HasMaxLength(300)
+            .HasConversion(
+                v => v.Value, // Store the full model name (e.g., "z-ai/glm-4.6")
+                v => ModelName.From(v)) // Convert back to ModelName
+            .IsRequired();
 
         // Note: Unique constraint on model_name could be added later if needed
         // For MVP, we'll rely on application logic to prevent duplicates

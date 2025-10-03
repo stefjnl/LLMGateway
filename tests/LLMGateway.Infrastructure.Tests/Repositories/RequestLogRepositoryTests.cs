@@ -28,7 +28,7 @@ public class RequestLogRepositoryTests : IDisposable
         var model = ModelName.From("test-model");
         var inputTokens = TokenCount.From(10);
         var outputTokens = TokenCount.From(5);
-        var cost = CostAmount.FromUsd(0.001);
+        var cost = CostAmount.FromUsd(0.001m);
         var responseTime = TimeSpan.FromMilliseconds(500);
 
         var requestLog = RequestLog.Create(
@@ -62,7 +62,7 @@ public class RequestLogRepositoryTests : IDisposable
         var model = ModelName.From("test-model");
         var inputTokens = TokenCount.From(5);
         var outputTokens = TokenCount.From(3);
-        var cost = CostAmount.FromUsd(0.0005);
+        var cost = CostAmount.FromUsd(0.0005m);
         var responseTime = TimeSpan.FromMilliseconds(200);
 
         // Create logs with different timestamps
@@ -99,11 +99,11 @@ public class RequestLogRepositoryTests : IDisposable
 
         // Create logs with different dates
         var oldLog = CreateLogWithSpecificTimestamp(model, inputTokens, outputTokens,
-            CostAmount.FromUsd(0.001), responseTime, oldDate);
+            CostAmount.FromUsd(0.001m), responseTime, oldDate);
         var recentLog1 = RequestLog.Create(model, inputTokens, outputTokens,
-            CostAmount.FromUsd(0.002), "Provider", responseTime);
+            CostAmount.FromUsd(0.002m), "Provider", responseTime);
         var recentLog2 = RequestLog.Create(model, inputTokens, outputTokens,
-            CostAmount.FromUsd(0.003), "Provider", responseTime);
+            CostAmount.FromUsd(0.003m), "Provider", responseTime);
 
         await _context.RequestLogs.AddAsync(oldLog);
         await _repository.SaveAsync(recentLog1);
@@ -114,7 +114,7 @@ public class RequestLogRepositoryTests : IDisposable
         var totalCost = await _repository.GetTotalCostAsync(recentDate);
 
         // Assert
-        totalCost.ValueUsd.Should().Be(0.005m); // 0.002 + 0.003
+        totalCost.ValueUsd.Should().Be(0.005m); // 0.002m + 0.003m
     }
 
     private RequestLog CreateLogWithSpecificTimestamp(

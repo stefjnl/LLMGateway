@@ -1,8 +1,7 @@
-using System.Net.Http.Json;
-using System.Text.Json;
 using Microsoft.Extensions.Logging;
-using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
+using System.Net.Http.Json;
 
 namespace LLMGateway.Infrastructure.ChatCompletion;
 
@@ -136,7 +135,7 @@ public class OpenRouterConfig
 /// <summary>
 /// OpenRouter API request format
 /// </summary>
-internal class OpenRouterRequest
+public class OpenRouterRequest
 {
     public required string Model { get; set; }
     public required OpenRouterMessage[] Messages { get; set; }
@@ -147,7 +146,7 @@ internal class OpenRouterRequest
 /// <summary>
 /// OpenRouter message format
 /// </summary>
-internal class OpenRouterMessage
+public class OpenRouterMessage
 {
     public required string Role { get; set; }
     public required string Content { get; set; }
@@ -156,7 +155,7 @@ internal class OpenRouterMessage
 /// <summary>
 /// OpenRouter API response format
 /// </summary>
-internal class OpenRouterResponse
+public class OpenRouterResponse
 {
     public string? Id { get; set; }
     public string? Model { get; set; }
@@ -167,7 +166,7 @@ internal class OpenRouterResponse
 /// <summary>
 /// OpenRouter choice format
 /// </summary>
-internal class OpenRouterChoice
+public class OpenRouterChoice
 {
     public OpenRouterMessage? Message { get; set; }
     public string? FinishReason { get; set; }
@@ -176,7 +175,7 @@ internal class OpenRouterChoice
 /// <summary>
 /// OpenRouter usage format
 /// </summary>
-internal class OpenRouterUsage
+public class OpenRouterUsage
 {
     public int PromptTokens { get; set; }
     public int CompletionTokens { get; set; }

@@ -1,5 +1,4 @@
 using LLMGateway.Domain.Interfaces;
-using LLMGateway.Domain.ValueObjects;
 using LLMGateway.Infrastructure.ChatCompletion;
 using LLMGateway.Infrastructure.Persistence;
 using LLMGateway.Infrastructure.Persistence.Repositories;

@@ -72,3 +72,6 @@ secrets.json
 *.db
 *.db-shm
 *.db-wal
+
+# Kilo Code
+.kilo/

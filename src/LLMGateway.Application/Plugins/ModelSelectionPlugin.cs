@@ -16,7 +16,7 @@ public class ModelSelectionPlugin
     }
 
     [KernelFunction("select_model")]
-    public Task<string> SelectModelAsync(int tokenCount, string? userModel)
+    public Task<ModelName> SelectModelAsync(int tokenCount, string? userModel)
     {
         // Validate token limit
         if (tokenCount > ModelDefaults.LargeContextLimit)
@@ -37,7 +37,7 @@ public class ModelSelectionPlugin
             _logger.LogInformation(
                 "Using user-specified model: {Model}",
                 userModel);
-            return Task.FromResult(userModel);
+            return Task.FromResult(ModelName.From(userModel));
         }
 
         // Rule 2: Large context detection
@@ -47,7 +47,7 @@ public class ModelSelectionPlugin
                 "Token count {TokenCount} exceeds standard limit, selecting large context model: {Model}",
                 tokenCount,
                 ModelDefaults.LargeContextModel);
-            return Task.FromResult(ModelDefaults.LargeContextModel);
+            return Task.FromResult(ModelName.From(ModelDefaults.LargeContextModel));
         }
 
         // Rule 3: Default to fast/cheap model
@@ -55,6 +55,6 @@ public class ModelSelectionPlugin
             "Using default model for {TokenCount} tokens: {Model}",
             tokenCount,
             ModelDefaults.DefaultModel);
-        return Task.FromResult(ModelDefaults.DefaultModel);
+        return Task.FromResult(ModelName.From(ModelDefaults.DefaultModel));
     }
 }

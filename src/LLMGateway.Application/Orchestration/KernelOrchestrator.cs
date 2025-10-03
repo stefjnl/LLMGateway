@@ -3,7 +3,9 @@ using System.Net;
 using LLMGateway.Application.Commands;
 using LLMGateway.Application.DTOs;
 using LLMGateway.Application.Plugins;
+using LLMGateway.Domain.Constants;
 using LLMGateway.Domain.Exceptions;
+using LLMGateway.Domain.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
@@ -16,6 +18,7 @@ public class KernelOrchestrator
     private readonly ModelSelectionPlugin _modelSelection;
     private readonly CostTrackingPlugin _costTracking;
     private readonly ProviderFallbackPlugin _providerFallback;
+    private readonly IProviderConfig _providerConfig;
     private readonly ILogger<KernelOrchestrator> _logger;
 
     public KernelOrchestrator(
@@ -23,12 +26,14 @@ public class KernelOrchestrator
         ModelSelectionPlugin modelSelection,
         CostTrackingPlugin costTracking,
         ProviderFallbackPlugin providerFallback,
+        IProviderConfig providerConfig,
         ILogger<KernelOrchestrator> logger)
     {
         _kernelFactory = kernelFactory;
         _modelSelection = modelSelection;
         _costTracking = costTracking;
         _providerFallback = providerFallback;
+        _providerConfig = providerConfig;
         _logger = logger;
     }
 
@@ -55,7 +60,7 @@ public class KernelOrchestrator
             var (result, finalModel, attempts) = await ExecuteWithFallbackAsync(
                 kernel,
                 command,
-                selectedModel,
+                selectedModel.Value,
                 cancellationToken);
 
             stopwatch.Stop();
@@ -64,11 +69,11 @@ public class KernelOrchestrator
             var inputTokens = ExtractInputTokens(result);
             var outputTokens = ExtractOutputTokens(result);
 
-            await _costTracking.TrackCostAsync(
+            var estimatedCost = await _costTracking.TrackCostAsync(
                 finalModel,
                 inputTokens,
                 outputTokens,
-                "OpenRouter",
+                _providerConfig.ProviderName,
                 stopwatch.ElapsedMilliseconds,
                 wasFallback: attempts > 1,
                 cancellationToken);
@@ -79,7 +84,7 @@ public class KernelOrchestrator
                 Content = result.Content ?? string.Empty,
                 Model = finalModel,
                 TokensUsed = inputTokens + outputTokens,
-                EstimatedCostUsd = 0m, // Will be calculated in Infrastructure layer
+                EstimatedCostUsd = estimatedCost,
                 ResponseTime = stopwatch.Elapsed
             };
         }
@@ -99,10 +104,12 @@ public class KernelOrchestrator
         var currentModel = initialModel;
         var attempts = 0;
         var maxAttempts = 3;
+        var attemptedModels = new List<string>();
 
         while (attempts < maxAttempts)
         {
             attempts++;
+            attemptedModels.Add(currentModel);
 
             try
             {
@@ -114,8 +121,8 @@ public class KernelOrchestrator
                     ModelId = currentModel,
                     ExtensionData = new Dictionary<string, object>
                     {
-                        ["temperature"] = (double)(command.Temperature ?? 0.7m),
-                        ["max_tokens"] = command.MaxTokens ?? 2000
+                        ["temperature"] = (double)(command.Temperature ?? ModelDefaults.DefaultTemperature),
+                        ["max_tokens"] = command.MaxTokens ?? ModelDefaults.DefaultMaxTokens
                     }
                 };
 
@@ -141,7 +148,7 @@ public class KernelOrchestrator
             }
         }
 
-        throw new AllProvidersFailedException(new[] { initialModel });
+        throw new AllProvidersFailedException(attemptedModels);
     }
 
     private bool IsTransientError(Exception ex)
@@ -161,7 +168,7 @@ public class KernelOrchestrator
     private int EstimateTokens(IEnumerable<Message> messages)
     {
         var totalChars = messages.Sum(m => m.Content.Length);
-        return totalChars / 4; // Simple estimation: ~4 chars per token
+        return totalChars / ModelDefaults.CharsPerToken; // Simple estimation: ~4 chars per token
     }
 
     private ChatHistory BuildChatHistory(IEnumerable<Message> messages)

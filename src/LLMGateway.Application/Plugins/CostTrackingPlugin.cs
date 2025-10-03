@@ -23,7 +23,7 @@ public class CostTrackingPlugin
     }
 
     [KernelFunction("track_cost")]
-    public async Task TrackCostAsync(
+    public async Task<decimal> TrackCostAsync(
         string modelName,
         int inputTokens,
         int outputTokens,
@@ -72,6 +72,8 @@ public class CostTrackingPlugin
                 inputTokens + outputTokens,
                 cost.ValueUsd,
                 wasFallback);
+
+            return cost.ValueUsd;
         }
         catch (Exception ex)
         {
@@ -80,6 +82,7 @@ public class CostTrackingPlugin
                 "Failed to track cost for model {Model}",
                 modelName);
             // Don't throw - cost tracking failure shouldn't break the response
+            return 0m;
         }
     }
 }

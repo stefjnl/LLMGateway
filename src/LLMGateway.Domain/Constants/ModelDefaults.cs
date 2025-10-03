@@ -18,4 +18,9 @@ public static class ModelDefaults
         BalancedModel,
         LargeContextModel
     };
+
+    // Default request parameters
+    public const decimal DefaultTemperature = 0.7m;
+    public const int DefaultMaxTokens = 2000;
+    public const int CharsPerToken = 4;
 }

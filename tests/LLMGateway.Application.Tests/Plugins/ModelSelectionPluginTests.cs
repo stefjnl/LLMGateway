@@ -27,7 +27,7 @@ public class ModelSelectionPluginTests
         var result = await _plugin.SelectModelAsync(5000, userModel);
 
         // Assert
-        result.Should().Be(userModel);
+        result.Value.Should().Be(userModel);
     }
 
     [Fact]
@@ -40,7 +40,7 @@ public class ModelSelectionPluginTests
         var result = await _plugin.SelectModelAsync(tokenCount, null);
 
         // Assert
-        result.Should().Be(ModelDefaults.LargeContextModel);
+        result.Value.Should().Be(ModelDefaults.LargeContextModel);
     }
 
     [Fact]
@@ -53,7 +53,7 @@ public class ModelSelectionPluginTests
         var result = await _plugin.SelectModelAsync(tokenCount, null);
 
         // Assert
-        result.Should().Be(ModelDefaults.DefaultModel);
+        result.Value.Should().Be(ModelDefaults.DefaultModel);
     }
 
     [Fact]
@@ -80,6 +80,6 @@ public class ModelSelectionPluginTests
         var result = await _plugin.SelectModelAsync(tokenCount, null);
 
         // Assert
-        result.Should().Be(ModelDefaults.DefaultModel);
+        result.Value.Should().Be(ModelDefaults.DefaultModel);
     }
 }

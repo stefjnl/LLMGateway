@@ -67,7 +67,7 @@ public class CostTrackingPluginTests
         // Expected: (1M / 1M) * 0.0001 + (1M / 1M) * 0.0002 = 0.0003
 
         // Act
-        await _plugin.TrackCostAsync(
+        var cost = await _plugin.TrackCostAsync(
             modelName,
             inputTokens,
             outputTokens,
@@ -76,6 +76,7 @@ public class CostTrackingPluginTests
             wasFallback: false);
 
         // Assert
+        cost.Should().Be(0.0003m);
         var logs = await _logRepository.GetRecentAsync(1);
         var log = logs.First();
         log.EstimatedCost.ValueUsd.Should().Be(0.0003m);
@@ -88,7 +89,7 @@ public class CostTrackingPluginTests
         var unknownModel = "unknown/model";
 
         // Act
-        await _plugin.TrackCostAsync(
+        var cost = await _plugin.TrackCostAsync(
             unknownModel,
             100,
             200,
@@ -97,6 +98,7 @@ public class CostTrackingPluginTests
             wasFallback: false);
 
         // Assert
+        cost.Should().Be(0m);
         var logs = await _logRepository.GetRecentAsync(1);
         var log = logs.First();
         log.EstimatedCost.ValueUsd.Should().Be(0m);

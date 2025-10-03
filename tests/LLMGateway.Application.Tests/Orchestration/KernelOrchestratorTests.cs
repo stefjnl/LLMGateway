@@ -27,12 +27,17 @@ public class KernelOrchestratorTests
         // Setup mock completion service
         _mockCompletionService = new Mock<IChatCompletionService>();
 
+        // Setup mock provider config
+        var mockProviderConfig = new Mock<IProviderConfig>();
+        mockProviderConfig.Setup(x => x.ProviderName).Returns("OpenRouter");
+
         // Setup DI container
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton(_mockCompletionService.Object);
         services.AddSingleton<IRequestLogRepository>(logRepository);
         services.AddSingleton<IModelPricingRepository>(pricingRepository);
+        services.AddSingleton<IProviderConfig>(mockProviderConfig.Object);
         services.AddSingleton<ModelSelectionPlugin>();
         services.AddSingleton<CostTrackingPlugin>();
         services.AddSingleton<ProviderFallbackPlugin>();
@@ -45,6 +50,7 @@ public class KernelOrchestratorTests
         var modelSelection = serviceProvider.GetRequiredService<ModelSelectionPlugin>();
         var costTracking = serviceProvider.GetRequiredService<CostTrackingPlugin>();
         var providerFallback = serviceProvider.GetRequiredService<ProviderFallbackPlugin>();
+        var providerConfig = serviceProvider.GetRequiredService<IProviderConfig>();
         var logger = serviceProvider.GetRequiredService<ILogger<KernelOrchestrator>>();
 
         _orchestrator = new KernelOrchestrator(
@@ -52,6 +58,7 @@ public class KernelOrchestratorTests
             modelSelection,
             costTracking,
             providerFallback,
+            providerConfig,
             logger);
     }
 

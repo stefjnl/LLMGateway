@@ -54,6 +54,9 @@ function setupEventListeners() {
 
   // Update temperature display
   elements.temperatureSlider.addEventListener('input', updateTemperatureDisplay);
+
+  // Example prompt clicks
+  setupExamplePrompts();
 }
 
 // Temperature Slider
@@ -136,14 +139,23 @@ function appendUserMessage(content) {
   scrollToBottom();
 }
 
+// Markdown rendering for AI responses
+function formatMarkdown(text) {
+  return text
+    .replace(/### (.*?)(\n|$)/g, '<h3 class="text-base font-semibold mt-4 mb-2 text-white">$1</h3>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold text-white">$1</strong>')
+    .replace(/\n\n/g, '</p><p class="mb-3">')
+    .replace(/^(.+)$/gm, '<p class="mb-3">$1</p>');
+}
+
 function appendAssistantMessage(result) {
   // Remove loading indicator if present
   removeLoadingIndicator();
 
   const clone = templates.assistantMessage.content.cloneNode(true);
 
-  // Set message content
-  clone.querySelector('p').textContent = result.content;
+  // Set message content with markdown formatting
+  clone.querySelector('p').innerHTML = formatMarkdown(result.content);
 
   // Set metadata
   const metaSpans = clone.querySelectorAll('.font-mono');
@@ -156,6 +168,9 @@ function appendAssistantMessage(result) {
 }
 
 function showLoadingIndicator() {
+  // Remove any existing loading indicator first
+  removeLoadingIndicator();
+
   const clone = templates.loading.content.cloneNode(true);
   clone.id = 'loading-indicator';
   elements.chatContainer.appendChild(clone);
@@ -303,7 +318,10 @@ function updateUI() {
 // Utilities
 function scrollToBottom() {
   setTimeout(() => {
-    elements.chatContainer.scrollTop = elements.chatContainer.scrollHeight;
+    elements.chatContainer.scrollTo({
+      top: elements.chatContainer.scrollHeight,
+      behavior: 'smooth'
+    });
   }, 100);
 }
 
@@ -320,6 +338,27 @@ document.addEventListener('keydown', (e) => {
     elements.messageInput.value = '';
   }
 });
+
+// Example Prompts
+function setupExamplePrompts() {
+  const examplePrompts = document.querySelectorAll('.example-prompt');
+  examplePrompts.forEach(prompt => {
+    prompt.addEventListener('click', () => {
+      const promptText = prompt.querySelector('p').textContent;
+      elements.messageInput.value = promptText;
+      elements.messageInput.focus();
+      // Remove welcome message after clicking a prompt
+      removeWelcomeMessage();
+    });
+  });
+}
+
+function removeWelcomeMessage() {
+  const welcomeSection = document.querySelector('.welcome-section');
+  if (welcomeSection) {
+    welcomeSection.remove();
+  }
+}
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {

@@ -225,6 +225,17 @@
   animation: shake 0.5s ease-in-out;
 }
 
+/* Loading state shimmer */
+@keyframes shimmer {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
+.thinking-indicator {
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   *,

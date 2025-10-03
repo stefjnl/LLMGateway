@@ -172,12 +172,20 @@ public class KernelOrchestrator(
 
     private int ExtractInputTokens(ChatMessageContent result)
     {
+        // Debug: Log all metadata keys
+        if (result.Metadata != null)
+        {
+            logger.LogDebug("Available metadata keys: {Keys}", string.Join(", ", result.Metadata.Keys));
+        }
+
         // Try to extract from metadata if available
         if (result.Metadata?.TryGetValue("input_tokens", out var inputTokens) == true)
         {
             try
             {
-                return Convert.ToInt32(inputTokens);
+                var tokenCount = Convert.ToInt32(inputTokens);
+                logger.LogDebug("Extracted input_tokens: {Tokens}", tokenCount);
+                return tokenCount;
             }
             catch (Exception ex)
             {
@@ -189,7 +197,7 @@ public class KernelOrchestrator(
         }
 
         // Fallback: estimate from prompt (will be refined in US-004)
-        logger.LogDebug("Input tokens not in metadata, estimation will be used");
+        logger.LogWarning("Input tokens not found in metadata, using 0");
         return 0; // Will be estimated in Infrastructure layer
     }
 

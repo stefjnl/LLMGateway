@@ -2,7 +2,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LLMGateway.Domain\LLMGateway.Domain.csproj" />
-    <ProjectReference Include="..\LLMGateway.Application\LLMGateway.Application.csproj" />
   </ItemGroup>
 
   <ItemGroup>

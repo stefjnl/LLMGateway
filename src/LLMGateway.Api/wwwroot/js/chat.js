@@ -149,9 +149,6 @@ function formatMarkdown(text) {
 }
 
 function appendAssistantMessage(result) {
-  // Remove loading indicator if present
-  removeLoadingIndicator();
-
   const clone = templates.assistantMessage.content.cloneNode(true);
 
   // Set message content with markdown formatting
@@ -178,10 +175,27 @@ function showLoadingIndicator() {
 }
 
 function removeLoadingIndicator() {
+  // Remove by ID first (most common case)
   const indicator = document.getElementById('loading-indicator');
   if (indicator) {
     indicator.remove();
+    return;
   }
+  
+  // Fallback: remove any loading indicators that might not have the ID
+  const loadingIndicators = elements.chatContainer.querySelectorAll('[id="loading-indicator"]');
+  loadingIndicators.forEach(indicator => indicator.remove());
+  
+  // Additional fallback: remove any elements containing "Thinking..." text
+  const allElements = elements.chatContainer.querySelectorAll('*');
+  allElements.forEach(element => {
+    if (element.textContent && element.textContent.includes('Thinking...')) {
+      const parentMessage = element.closest('.flex.justify-start');
+      if (parentMessage) {
+        parentMessage.remove();
+      }
+    }
+  });
 }
 
 function setLoadingState(loading) {
@@ -194,7 +208,11 @@ function setLoadingState(loading) {
   if (loading) {
     showLoadingIndicator();
   } else {
-    removeLoadingIndicator();
+    // Ensure loading indicator is removed with a small delay
+    // to prevent race conditions with message appending
+    setTimeout(() => {
+      removeLoadingIndicator();
+    }, 50);
   }
 }
 

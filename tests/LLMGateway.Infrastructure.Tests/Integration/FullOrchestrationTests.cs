@@ -120,7 +120,7 @@ public class FullOrchestrationTests : IDisposable
 
         var command = new SendChatCompletionCommand(
             Messages: new[] { new Message { Role = "user", Content = "Hello, how are you?" } },
-            Model: "z-ai/glm-4.6",
+            Model: "google/gemini-2.5-flash-lite-preview-09-2025",
             Temperature: 0.7m);
 
         // Act
@@ -129,7 +129,7 @@ public class FullOrchestrationTests : IDisposable
         // Assert
         response.Should().NotBeNull();
         response.Content.Should().Be("This is a test response from OpenRouter.");
-        response.Model.Should().Be("z-ai/glm-4.6");
+        response.Model.Should().Be("google/gemini-2.5-flash-lite-preview-09-2025");
         response.TokensUsed.Should().Be(23); // 15 + 8
 
         // Debug: Check if cost is actually calculated
@@ -194,7 +194,7 @@ public class FullOrchestrationTests : IDisposable
 
         var command = new SendChatCompletionCommand(
             Messages: new[] { new Message { Role = "user", Content = "Test metadata flow" } },
-            Model: "z-ai/glm-4.6");
+            Model: "google/gemini-2.5-flash-lite-preview-09-2025");
 
         // Act
         var response = await _orchestrator.SendChatCompletionAsync(command);
@@ -224,7 +224,13 @@ public class FullOrchestrationTests : IDisposable
                 "OpenRouter",
                 0.30m,  // $0.30 per 1M input tokens
                 0.50m,  // $0.50 per 1M output tokens
-                64000)
+                64000),
+            ModelPricing.Create(
+                ModelName.From("google/gemini-2.5-flash-lite-preview-09-2025"),
+                "OpenRouter",
+                0.05m,  // $0.05 per 1M input tokens (faster, cheaper model)
+                0.10m,  // $0.10 per 1M output tokens
+                128000)
         };
 
         context.ModelPricings.AddRange(models);

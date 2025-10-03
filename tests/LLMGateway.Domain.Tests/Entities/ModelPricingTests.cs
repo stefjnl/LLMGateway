@@ -10,7 +10,7 @@ public class ModelPricingTests
     public void Create_ValidParameters_CreatesModelPricing()
     {
         // Arrange
-        var model = ModelName.From("z-ai/glm-4.6");
+        var model = ModelName.From("google/gemini-2.5-flash-lite-preview-09-2025");
 
         // Act
         var pricing = ModelPricing.Create(
@@ -35,7 +35,7 @@ public class ModelPricingTests
     {
         // Arrange
         var pricing = ModelPricing.Create(
-            ModelName.From("z-ai/glm-4.6"),
+            ModelName.From("google/gemini-2.5-flash-lite-preview-09-2025"),
             "OpenRouter",
             inputCost: 0.0001m,   // $0.0001 per 1M tokens
             outputCost: 0.0002m,  // $0.0002 per 1M tokens
@@ -59,7 +59,7 @@ public class ModelPricingTests
     {
         // Arrange
         var pricing = ModelPricing.Create(
-            ModelName.From("z-ai/glm-4.6"),
+            ModelName.From("google/gemini-2.5-flash-lite-preview-09-2025"),
             "OpenRouter",
             inputCost: 0.0001m,
             outputCost: 0.0002m,

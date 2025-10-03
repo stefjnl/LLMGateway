@@ -9,11 +9,11 @@ public class ModelNameTests
     public void From_ValidModelName_CreatesInstance()
     {
         // Act
-        var modelName = ModelName.From("z-ai/glm-4.6");
+        var modelName = ModelName.From("google/gemini-2.5-flash-lite-preview-09-2025");
 
         // Assert
-        modelName.Value.Should().Be("z-ai/glm-4.6");
-        modelName.Provider.Should().Be("z-ai");
+        modelName.Value.Should().Be("google/gemini-2.5-flash-lite-preview-09-2025");
+        modelName.Provider.Should().Be("google");
     }
 
     [Theory]
@@ -45,8 +45,8 @@ public class ModelNameTests
     public void Equals_SameValue_ReturnsTrue()
     {
         // Arrange
-        var model1 = ModelName.From("z-ai/glm-4.6");
-        var model2 = ModelName.From("z-ai/glm-4.6");
+        var model1 = ModelName.From("google/gemini-2.5-flash-lite-preview-09-2025");
+        var model2 = ModelName.From("google/gemini-2.5-flash-lite-preview-09-2025");
 
         // Act & Assert
         model1.Should().Be(model2);

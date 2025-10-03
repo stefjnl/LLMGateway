@@ -115,6 +115,11 @@ public class KernelOrchestrator(
                     kernel,
                     cancellationToken);
 
+                if (results == null || !results.Any())
+                {
+                    throw new InvalidOperationException("Chat completion service returned no results");
+                }
+
                 return (results.First(), currentModel, attempts);
             }
             catch (Exception ex) when (IsTransientError(ex) && attempts < maxAttempts)

@@ -57,21 +57,23 @@ public static class SKServiceCollectionExtensions
             var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
             var httpClient = httpClientFactory.CreateClient("OpenRouter");
             var logger = serviceProvider.GetRequiredService<ILogger<ProviderHealthChecker>>();
-            return new ProviderHealthChecker(httpClient, logger);
+            var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+            return new ProviderHealthChecker(httpClient, logger, configuration);
         });
 
-        // Register HttpClient for OpenRouter with Polly policies
+        // Register HttpClient for OpenRouter with Polly policies and connection pooling
         services.AddHttpClient("OpenRouter", (serviceProvider, client) =>
         {
-            var config = serviceProvider.GetRequiredService<IConfiguration>()
-                .GetSection("OpenRouter").Get<OpenRouterConfig>();
+            var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+            var config = configuration.GetSection("OpenRouter").Get<OpenRouterConfig>();
 
             client.BaseAddress = new Uri(config?.BaseUrl ?? "https://openrouter.ai/api/v1/");
             client.Timeout = TimeSpan.FromSeconds(config?.TimeoutSeconds ?? 30);
 
             // Add authorization header if API key is configured
-            var configuration = serviceProvider.GetRequiredService<IConfiguration>();
-            var apiKey = configuration["ApiKeys:OpenRouter"];
+            // Try multiple configuration paths for API key
+            var apiKey = configuration["ApiKeys:OpenRouter"] ?? config?.ApiKey;
+            
             if (!string.IsNullOrEmpty(apiKey))
             {
                 client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
@@ -79,8 +81,20 @@ public static class SKServiceCollectionExtensions
             else
             {
                 var logger = serviceProvider.GetRequiredService<ILogger<OpenRouterChatCompletionService>>();
-                logger.LogWarning("OpenRouter API key not found in configuration at 'ApiKeys:OpenRouter'");
+                logger.LogWarning("OpenRouter API key not found in configuration. Check 'ApiKeys:OpenRouter' or 'OpenRouter:ApiKey'");
             }
+        })
+        .ConfigurePrimaryHttpMessageHandler(serviceProvider =>
+        {
+            var config = serviceProvider.GetRequiredService<IConfiguration>()
+                .GetSection("OpenRouter").Get<OpenRouterConfig>();
+            
+            return new SocketsHttpHandler
+            {
+                PooledConnectionLifetime = TimeSpan.FromMinutes(config?.ConnectionLifetimeMinutes ?? 5),
+                MaxConnectionsPerServer = config?.MaxConnectionsPerServer ?? 100,
+                EnableMultipleHttp2Connections = config?.UseHttp2 ?? true
+            };
         })
         .AddPolicyHandler((serviceProvider, request) =>
         {

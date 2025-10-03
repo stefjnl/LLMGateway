@@ -3,7 +3,7 @@ namespace LLMGateway.Domain.Constants;
 public static class ModelDefaults
 {
     // Model identifiers (OpenRouter format)
-    public const string DefaultModel = "z-ai/glm-4.6";
+    public const string DefaultModel = "google/gemini-2.5-flash-lite-preview-09-2025";
     public const string LargeContextModel = "moonshotai/Kimi-K2-Instruct-0905";
     public const string BalancedModel = "deepseek-ai/DeepSeek-V3.1-Terminus";
 

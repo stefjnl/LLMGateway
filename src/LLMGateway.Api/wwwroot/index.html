@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,9 +8,11 @@
     <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <link rel="stylesheet" href="css/app.css">
 </head>
+
 <body class="bg-slate-900 min-h-screen flex flex-col">
     <!-- Header -->
-    <header class="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 backdrop-blur-lg border-b border-white/10 animate-gradient-x">
+    <header
+        class="bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 backdrop-blur-lg border-b border-white/10 animate-gradient-x">
         <div class="container mx-auto px-4 py-4 flex justify-between items-center">
             <h1 class="text-2xl font-bold text-white">🤖 LLM Gateway</h1>
             <div id="health-status" class="flex items-center gap-2">
@@ -25,19 +28,23 @@
         <div class="text-center py-8">
             <div class="max-w-4xl mx-auto">
                 <h2 class="text-2xl font-bold text-white mb-4">Welcome to LLM Gateway</h2>
-                <p class="text-gray-300 mb-8">Start a conversation with our intelligent routing system. Messages are automatically routed to the best available LLM model.</p>
+                <p class="text-gray-300 mb-8">Start a conversation with our intelligent routing system. Messages are
+                    automatically routed to the best available LLM model.</p>
 
                 <!-- Example prompts -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-4xl mx-auto">
-                    <button class="example-prompt group p-4 bg-slate-800/50 backdrop-blur-sm rounded-lg border border-white/10 hover:bg-slate-700/50 hover:border-blue-400/30 transition-all duration-200 text-left">
+                    <button
+                        class="example-prompt group p-4 bg-slate-800/50 backdrop-blur-sm rounded-lg border border-white/10 hover:bg-slate-700/50 hover:border-blue-400/30 transition-all duration-200 text-left">
                         <span class="text-2xl mb-2 block">💡</span>
                         <p class="text-sm text-gray-300 group-hover:text-white">Explain quantum computing simply</p>
                     </button>
-                    <button class="example-prompt group p-4 bg-slate-800/50 backdrop-blur-sm rounded-lg border border-white/10 hover:bg-slate-700/50 hover:border-blue-400/30 transition-all duration-200 text-left">
+                    <button
+                        class="example-prompt group p-4 bg-slate-800/50 backdrop-blur-sm rounded-lg border border-white/10 hover:bg-slate-700/50 hover:border-blue-400/30 transition-all duration-200 text-left">
                         <span class="text-2xl mb-2 block">🔧</span>
                         <p class="text-sm text-gray-300 group-hover:text-white">Debug this Python error</p>
                     </button>
-                    <button class="example-prompt group p-4 bg-slate-800/50 backdrop-blur-sm rounded-lg border border-white/10 hover:bg-slate-700/50 hover:border-blue-400/30 transition-all duration-200 text-left">
+                    <button
+                        class="example-prompt group p-4 bg-slate-800/50 backdrop-blur-sm rounded-lg border border-white/10 hover:bg-slate-700/50 hover:border-blue-400/30 transition-all duration-200 text-left">
                         <span class="text-2xl mb-2 block">✍️</span>
                         <p class="text-sm text-gray-300 group-hover:text-white">Write a professional email</p>
                     </button>
@@ -53,9 +60,11 @@
             <div class="flex gap-4 mb-3 flex-wrap">
                 <div class="flex-1 min-w-[200px]">
                     <label class="text-xs text-gray-400 block mb-1">Model</label>
-                    <select id="model-select" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    <select id="model-select"
+                        class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
                         <option value="">Auto (Recommended)</option>
-                        <option value="z-ai/glm-4.6">GLM-4.6 (Fast & Balanced)</option>
+                        <option value="google/gemini-2.5-flash-lite-preview-09-2025">Google Gemini 2.5 fast lite (Fast &
+                            Balanced)</option>
                         <option value="deepseek-ai/DeepSeek-V3.1-Terminus">DeepSeek V3.1 (Advanced Reasoning)</option>
                         <option value="moonshotai/Kimi-K2-Instruct-0905">Kimi K2 (Large Context)</option>
                     </select>
@@ -66,14 +75,13 @@
                         <span id="temp-value" class="font-mono text-blue-400">0.7</span>
                     </label>
                     <input type="range" id="temperature" min="0" max="2" step="0.1" value="0.7"
-                           class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider">
+                        class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider">
                 </div>
             </div>
 
             <!-- Message input -->
-            <textarea id="message-input" rows="3"
-                      placeholder="Type your message here... (Ask me anything!)"
-                      class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg resize-none text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea>
+            <textarea id="message-input" rows="3" placeholder="Type your message here... (Ask me anything!)"
+                class="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg resize-none text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea>
 
             <!-- Action buttons -->
             <div class="flex justify-between items-center mt-3 flex-wrap gap-2">
@@ -83,12 +91,12 @@
                 </div>
                 <div class="flex gap-2">
                     <button id="clear-btn"
-                            class="px-4 py-2 text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled>
+                        class="px-4 py-2 text-gray-400 hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled>
                         Clear
                     </button>
                     <button id="send-btn"
-                            class="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+                        class="px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:shadow-lg transition-all transform hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
                         Send →
                     </button>
                 </div>
@@ -132,4 +140,5 @@
     <!-- Scripts -->
     <script src="js/chat.js"></script>
 </body>
+
 </html>

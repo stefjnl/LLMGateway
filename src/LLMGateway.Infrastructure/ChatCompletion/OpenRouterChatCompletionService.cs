@@ -40,15 +40,21 @@ public class OpenRouterChatCompletionService : IChatCompletionService
         _logger.LogInformation("Starting OpenRouter chat completion request");
 
         // Extract model and temperature from execution settings
-        var model = "z-ai/glm-4.6";
+        var model = "google/gemini-2.5-flash-lite-preview-09-2025";
         var temperature = 0.7;
 
         if (executionSettings?.ExtensionData != null)
         {
-            if (executionSettings.ExtensionData.TryGetValue("model", out var modelValue) && modelValue is string modelStr)
+            // Try both "ModelId" (from SK) and "model" (OpenRouter format)
+            if (executionSettings.ExtensionData.TryGetValue("ModelId", out var modelValue) && modelValue is string modelStr)
             {
                 model = modelStr;
             }
+            else if (executionSettings.ExtensionData.TryGetValue("model", out var modelValue2) && modelValue2 is string modelStr2)
+            {
+                model = modelStr2;
+            }
+            
             if (executionSettings.ExtensionData.TryGetValue("temperature", out var tempValue) && tempValue is double tempDouble)
             {
                 temperature = tempDouble;
@@ -127,9 +133,13 @@ public class OpenRouterConfig
     public string BaseUrl { get; set; } = "https://openrouter.ai/api/v1/";
     public string ApiKey { get; set; } = string.Empty;
     public int TimeoutSeconds { get; set; } = 30;
+    public int HealthCheckTimeoutSeconds { get; set; } = 5;
     public int MaxRetries { get; set; } = 3;
     public int CircuitBreakerFailureThreshold { get; set; } = 5;
     public int CircuitBreakerCooldownSeconds { get; set; } = 30;
+    public int MaxConnectionsPerServer { get; set; } = 100;
+    public int ConnectionLifetimeMinutes { get; set; } = 5;
+    public bool UseHttp2 { get; set; } = true;
 }
 
 /// <summary>

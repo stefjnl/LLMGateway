@@ -10,7 +10,7 @@ public class RequestLogTests
     public void Create_ValidParameters_CreatesRequestLog()
     {
         // Arrange
-        var model = ModelName.From("z-ai/glm-4.6");
+        var model = ModelName.From("google/gemini-2.5-flash-lite-preview-09-2025");
         var inputTokens = TokenCount.From(10);
         var outputTokens = TokenCount.From(50);
         var cost = CostAmount.FromUsd(0.00001m);
@@ -58,7 +58,7 @@ public class RequestLogTests
     {
         // Arrange
         var log = RequestLog.Create(
-            ModelName.From("z-ai/glm-4.6"),
+            ModelName.From("google/gemini-2.5-flash-lite-preview-09-2025"),
             TokenCount.From(10),
             TokenCount.From(50),
             CostAmount.FromUsd(0.01m),

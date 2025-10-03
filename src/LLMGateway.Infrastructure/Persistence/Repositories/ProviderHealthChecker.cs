@@ -1,4 +1,6 @@
 using LLMGateway.Domain.Interfaces;
+using LLMGateway.Infrastructure.ChatCompletion;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace LLMGateway.Infrastructure.Persistence.Repositories;
@@ -11,13 +13,16 @@ public class ProviderHealthChecker : IProviderHealthChecker
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<ProviderHealthChecker> _logger;
+    private readonly IConfiguration _configuration;
 
     public ProviderHealthChecker(
         HttpClient httpClient,
-        ILogger<ProviderHealthChecker> logger)
+        ILogger<ProviderHealthChecker> logger,
+        IConfiguration configuration)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
     }
 
     public async Task<bool> IsHealthyAsync(
@@ -36,9 +41,12 @@ public class ProviderHealthChecker : IProviderHealthChecker
                 return false;
             }
 
-            // Call OpenRouter /models endpoint with 5s timeout
+            // Call OpenRouter /models endpoint with configurable timeout
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(5));
+            
+            // Get configuration for health check timeout
+            var config = GetOpenRouterConfig();
+            cts.CancelAfter(TimeSpan.FromSeconds(config?.HealthCheckTimeoutSeconds ?? 5));
 
             var response = await _httpClient.GetAsync("models", cts.Token);
 
@@ -76,5 +84,13 @@ public class ProviderHealthChecker : IProviderHealthChecker
         results["OpenRouter"] = isHealthy;
 
         return results;
+    }
+
+    /// <summary>
+    /// Gets the OpenRouter configuration from the application settings
+    /// </summary>
+    private OpenRouterConfig? GetOpenRouterConfig()
+    {
+        return _configuration.GetSection("OpenRouter").Get<OpenRouterConfig>();
     }
 }

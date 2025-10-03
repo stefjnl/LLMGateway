@@ -41,22 +41,28 @@ public static class PollyPolicies
                     logger.LogInformation("Circuit breaker half-open - testing service health");
                 });
 
-        // Retry policy: exponential backoff for transient errors
+        // Retry policy: exponential backoff with jitter for transient errors
         var retry = Policy
             .HandleResult<HttpResponseMessage>(IsTransientError)
             .Or<HttpRequestException>()
             .Or<TaskCanceledException>()
             .WaitAndRetryAsync(
                 retryCount: config.MaxRetries,
-                sleepDurationProvider: (attempt) => TimeSpan.FromSeconds(Math.Pow(2, attempt - 1)), // 1s, 2s, 4s
+                sleepDurationProvider: (attempt) =>
+                {
+                    // Exponential backoff with jitter: 0.5s, 1s (reduced from 1s, 2s, 4s)
+                    var baseDelay = TimeSpan.FromSeconds(Math.Pow(2, attempt - 1) / 2); // 0.5s, 1s
+                    var jitter = TimeSpan.FromMilliseconds(new Random().Next(0, 200)); // 0-200ms jitter
+                    return baseDelay + jitter;
+                },
                 onRetry: (result, timespan, attempt, context) =>
                 {
                     logger.LogWarning("Retry attempt {Attempt} after {Delay}. Result: {Result}",
                         attempt, timespan, result?.Result?.StatusCode.ToString() ?? "Exception");
                 });
 
-        // Combine: retry wraps circuit breaker
-        return Policy.WrapAsync(retry, circuitBreaker);
+        // Combine: circuit breaker wraps retry (correct order)
+        return Policy.WrapAsync(circuitBreaker, retry);
     }
 
     /// <summary>

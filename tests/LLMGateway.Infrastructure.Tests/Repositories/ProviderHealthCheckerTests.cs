@@ -1,6 +1,8 @@
 using System.Net;
 using LLMGateway.Domain.Interfaces;
+using LLMGateway.Infrastructure.ChatCompletion;
 using LLMGateway.Infrastructure.Persistence.Repositories;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;
@@ -11,6 +13,7 @@ public class ProviderHealthCheckerTests
 {
     private readonly Mock<HttpMessageHandler> _httpMessageHandlerMock;
     private readonly Mock<ILogger<ProviderHealthChecker>> _loggerMock;
+    private readonly Mock<IConfiguration> _configurationMock;
     private readonly HttpClient _httpClient;
     private readonly ProviderHealthChecker _healthChecker;
 
@@ -18,11 +21,29 @@ public class ProviderHealthCheckerTests
     {
         _httpMessageHandlerMock = new Mock<HttpMessageHandler>();
         _loggerMock = new Mock<ILogger<ProviderHealthChecker>>();
+        _configurationMock = new Mock<IConfiguration>();
+        
+        // Setup configuration to return default OpenRouterConfig using GetValue instead of Get<T>
+        var configSectionMock = new Mock<IConfigurationSection>();
+        configSectionMock.Setup(x => x["HealthCheckTimeoutSeconds"]).Returns("5");
+        configSectionMock.Setup(x => x["BaseUrl"]).Returns("https://openrouter.ai/api/v1/");
+        configSectionMock.Setup(x => x["ApiKey"]).Returns("test-key");
+        configSectionMock.Setup(x => x["TimeoutSeconds"]).Returns("60");
+        configSectionMock.Setup(x => x["MaxRetries"]).Returns("2");
+        configSectionMock.Setup(x => x["CircuitBreakerFailureThreshold"]).Returns("3");
+        configSectionMock.Setup(x => x["CircuitBreakerDurationSeconds"]).Returns("30");
+        configSectionMock.Setup(x => x["MaxConnectionsPerServer"]).Returns("100");
+        configSectionMock.Setup(x => x["ConnectionLifetimeMinutes"]).Returns("5");
+        configSectionMock.Setup(x => x["UseHttp2"]).Returns("true");
+        
+        _configurationMock.Setup(x => x.GetSection("OpenRouter"))
+            .Returns(configSectionMock.Object);
+        
         _httpClient = new HttpClient(_httpMessageHandlerMock.Object)
         {
             BaseAddress = new Uri("https://openrouter.ai/api/v1/")
         };
-        _healthChecker = new ProviderHealthChecker(_httpClient, _loggerMock.Object);
+        _healthChecker = new ProviderHealthChecker(_httpClient, _loggerMock.Object, _configurationMock.Object);
     }
 
     [Fact]

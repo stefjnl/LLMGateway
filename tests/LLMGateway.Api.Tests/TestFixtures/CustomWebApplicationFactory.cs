@@ -6,6 +6,8 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.SemanticKernel;
+using Microsoft.SemanticKernel.ChatCompletion;
 using Moq;
 
 namespace LLMGateway.Api.Tests.TestFixtures;
@@ -56,6 +58,36 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
             // Add mock chat completion service
             MockChatService = new Mock<Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService>();
+            
+            // Configure mock to return valid results
+            MockChatService.Setup(x => x.GetChatMessageContentsAsync(
+                    It.IsAny<ChatHistory>(),
+                    It.IsAny<PromptExecutionSettings>(),
+                    It.IsAny<Kernel>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((ChatHistory history, PromptExecutionSettings settings, Kernel kernel, CancellationToken token) =>
+                {
+                    var result = new ChatMessageContent(
+                        role: AuthorRole.Assistant,
+                        content: "Mock response from AI");
+
+                    // Populate metadata for cost tracking
+                    result.Metadata = new Dictionary<string, object?>
+                    {
+                        ["input_tokens"] = 10,
+                        ["output_tokens"] = 20
+                    };
+
+                    return new[] { result };
+                });
+
+            MockChatService.SetupGet(x => x.Attributes)
+                .Returns(new Dictionary<string, object?>
+                {
+                    ["ProviderName"] = "MockProvider",
+                    ["ModelProvider"] = "MockProvider"
+                });
+
             services.AddSingleton(MockChatService.Object);
 
             // Mock provider health checker

@@ -2,6 +2,7 @@ using LLMGateway.Domain.Entities;
 using LLMGateway.Domain.Interfaces;
 using LLMGateway.Domain.ValueObjects;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 namespace LLMGateway.Infrastructure.Persistence.Repositories;
 
@@ -25,8 +26,11 @@ public class ModelPricingRepository : IModelPricingRepository
         if (model == null)
             throw new ArgumentNullException(nameof(model));
 
-        return await _context.ModelPricings
-            .FirstOrDefaultAsync(mp => mp.Model.Value == model.Value, cancellationToken);
+        // Use the actual property access - EF Core should handle the conversion via the configured value converter
+        // For InMemory provider, we need to use a different approach
+        // Load all records and filter in memory to avoid query translation issues
+        var allPricings = await _context.ModelPricings.ToListAsync(cancellationToken);
+        return allPricings.FirstOrDefault(mp => mp.Model.Value == model.Value);
     }
 
     public async Task<IEnumerable<ModelPricing>> GetAllAsync(

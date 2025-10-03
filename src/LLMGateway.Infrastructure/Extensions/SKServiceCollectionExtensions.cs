@@ -50,7 +50,15 @@ public static class SKServiceCollectionExtensions
         // Register repositories
         services.AddScoped<IRequestLogRepository, RequestLogRepository>();
         services.AddScoped<IModelPricingRepository, ModelPricingRepository>();
-        services.AddScoped<IProviderHealthChecker, ProviderHealthChecker>();
+
+        // Register ProviderHealthChecker with OpenRouter HttpClient
+        services.AddScoped<IProviderHealthChecker>(serviceProvider =>
+        {
+            var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateClient("OpenRouter");
+            var logger = serviceProvider.GetRequiredService<ILogger<ProviderHealthChecker>>();
+            return new ProviderHealthChecker(httpClient, logger);
+        });
 
         // Register HttpClient for OpenRouter with Polly policies
         services.AddHttpClient("OpenRouter", (serviceProvider, client) =>
@@ -62,10 +70,16 @@ public static class SKServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(config?.TimeoutSeconds ?? 30);
 
             // Add authorization header if API key is configured
-            var apiKey = config?.ApiKey;
+            var configuration = serviceProvider.GetRequiredService<IConfiguration>();
+            var apiKey = configuration["ApiKeys:OpenRouter"];
             if (!string.IsNullOrEmpty(apiKey))
             {
                 client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+            }
+            else
+            {
+                var logger = serviceProvider.GetRequiredService<ILogger<OpenRouterChatCompletionService>>();
+                logger.LogWarning("OpenRouter API key not found in configuration at 'ApiKeys:OpenRouter'");
             }
         })
         .AddPolicyHandler((serviceProvider, request) =>

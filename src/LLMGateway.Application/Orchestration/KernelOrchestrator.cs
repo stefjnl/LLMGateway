@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Net;
 using LLMGateway.Application.Commands;
 using LLMGateway.Application.DTOs;
 using LLMGateway.Application.Plugins;
@@ -9,34 +7,19 @@ using LLMGateway.Domain.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
+using System.Diagnostics;
+using System.Net;
 
 namespace LLMGateway.Application.Orchestration;
 
-public class KernelOrchestrator
+public class KernelOrchestrator(
+    KernelFactory kernelFactory,
+    ModelSelectionPlugin modelSelection,
+    CostTrackingPlugin costTracking,
+    ProviderFallbackPlugin providerFallback,
+    IProviderConfig providerConfig,
+    ILogger<KernelOrchestrator> logger)
 {
-    private readonly KernelFactory _kernelFactory;
-    private readonly ModelSelectionPlugin _modelSelection;
-    private readonly CostTrackingPlugin _costTracking;
-    private readonly ProviderFallbackPlugin _providerFallback;
-    private readonly IProviderConfig _providerConfig;
-    private readonly ILogger<KernelOrchestrator> _logger;
-
-    public KernelOrchestrator(
-        KernelFactory kernelFactory,
-        ModelSelectionPlugin modelSelection,
-        CostTrackingPlugin costTracking,
-        ProviderFallbackPlugin providerFallback,
-        IProviderConfig providerConfig,
-        ILogger<KernelOrchestrator> logger)
-    {
-        _kernelFactory = kernelFactory;
-        _modelSelection = modelSelection;
-        _costTracking = costTracking;
-        _providerFallback = providerFallback;
-        _providerConfig = providerConfig;
-        _logger = logger;
-    }
-
     public async Task<ChatResponse> SendChatCompletionAsync(
         SendChatCompletionCommand command,
         CancellationToken cancellationToken = default)
@@ -48,11 +31,11 @@ public class KernelOrchestrator
             // Validate command
             command.Validate();
 
-            var kernel = _kernelFactory.CreateWithPlugins();
+            var kernel = kernelFactory.CreateWithPlugins();
 
             // Step 1: Estimate tokens and select model
             var estimatedTokens = EstimateTokens(command.Messages);
-            var selectedModel = await _modelSelection.SelectModelAsync(
+            var selectedModel = await modelSelection.SelectModelAsync(
                 estimatedTokens,
                 command.Model);
 
@@ -69,11 +52,11 @@ public class KernelOrchestrator
             var inputTokens = ExtractInputTokens(result);
             var outputTokens = ExtractOutputTokens(result);
 
-            var estimatedCost = await _costTracking.TrackCostAsync(
+            var estimatedCost = await costTracking.TrackCostAsync(
                 finalModel,
                 inputTokens,
                 outputTokens,
-                _providerConfig.ProviderName,
+                providerConfig.ProviderName,
                 stopwatch.ElapsedMilliseconds,
                 wasFallback: attempts > 1,
                 cancellationToken);
@@ -90,7 +73,7 @@ public class KernelOrchestrator
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to complete chat request");
+            logger.LogError(ex, "Failed to complete chat request");
             throw;
         }
     }
@@ -136,7 +119,7 @@ public class KernelOrchestrator
             }
             catch (Exception ex) when (IsTransientError(ex) && attempts < maxAttempts)
             {
-                _logger.LogWarning(
+                logger.LogWarning(
                     ex,
                     "Transient error on attempt {Attempt}/{MaxAttempts} for model {Model}",
                     attempts,
@@ -144,7 +127,7 @@ public class KernelOrchestrator
                     currentModel);
 
                 // Get fallback model with attempt history
-                currentModel = await _providerFallback.GetFallbackModelAsync(
+                currentModel = await providerFallback.GetFallbackModelAsync(
                     currentModel,
                     attemptedModels);
             }
@@ -153,7 +136,7 @@ public class KernelOrchestrator
         throw new AllProvidersFailedException(attemptedModels);
     }
 
-    private bool IsTransientError(Exception ex)
+    private static bool IsTransientError(Exception ex)
     {
         return ex switch
         {
@@ -167,7 +150,7 @@ public class KernelOrchestrator
         };
     }
 
-    private int EstimateTokens(IEnumerable<Message> messages)
+    private static int EstimateTokens(IEnumerable<Message> messages)
     {
         var totalChars = messages.Sum(m => m.Content.Length);
         return totalChars / ModelDefaults.CharsPerToken; // Simple estimation: ~4 chars per token
@@ -198,7 +181,7 @@ public class KernelOrchestrator
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(
+                logger.LogWarning(
                     ex,
                     "Failed to parse input_tokens from metadata: {Value}",
                     inputTokens);
@@ -206,7 +189,7 @@ public class KernelOrchestrator
         }
 
         // Fallback: estimate from prompt (will be refined in US-004)
-        _logger.LogDebug("Input tokens not in metadata, estimation will be used");
+        logger.LogDebug("Input tokens not in metadata, estimation will be used");
         return 0; // Will be estimated in Infrastructure layer
     }
 
@@ -221,7 +204,7 @@ public class KernelOrchestrator
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(
+                logger.LogWarning(
                     ex,
                     "Failed to parse output_tokens from metadata: {Value}",
                     outputTokens);
@@ -234,7 +217,7 @@ public class KernelOrchestrator
 
         if (estimated > 0)
         {
-            _logger.LogDebug(
+            logger.LogDebug(
                 "Output tokens not in metadata, using estimation: {Estimated}",
                 estimated);
         }

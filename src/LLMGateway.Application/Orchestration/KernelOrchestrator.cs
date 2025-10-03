@@ -143,8 +143,10 @@ public class KernelOrchestrator
                     maxAttempts,
                     currentModel);
 
-                // Get fallback model
-                currentModel = await _providerFallback.GetFallbackModelAsync(currentModel);
+                // Get fallback model with attempt history
+                currentModel = await _providerFallback.GetFallbackModelAsync(
+                    currentModel,
+                    attemptedModels);
             }
         }
 
@@ -190,11 +192,22 @@ public class KernelOrchestrator
         // Try to extract from metadata if available
         if (result.Metadata?.TryGetValue("input_tokens", out var inputTokens) == true)
         {
-            return Convert.ToInt32(inputTokens);
+            try
+            {
+                return Convert.ToInt32(inputTokens);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Failed to parse input_tokens from metadata: {Value}",
+                    inputTokens);
+            }
         }
 
-        // Fallback: estimate from result (will be more accurate in Infrastructure layer)
-        return 0;
+        // Fallback: estimate from prompt (will be refined in US-004)
+        _logger.LogDebug("Input tokens not in metadata, estimation will be used");
+        return 0; // Will be estimated in Infrastructure layer
     }
 
     private int ExtractOutputTokens(ChatMessageContent result)
@@ -202,10 +215,30 @@ public class KernelOrchestrator
         // Try to extract from metadata if available
         if (result.Metadata?.TryGetValue("output_tokens", out var outputTokens) == true)
         {
-            return Convert.ToInt32(outputTokens);
+            try
+            {
+                return Convert.ToInt32(outputTokens);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(
+                    ex,
+                    "Failed to parse output_tokens from metadata: {Value}",
+                    outputTokens);
+            }
         }
 
-        // Fallback: estimate from content
-        return (result.Content?.Length ?? 0) / 4;
+        // Fallback: estimate from content length
+        var contentLength = result.Content?.Length ?? 0;
+        var estimated = contentLength / ModelDefaults.CharsPerToken;
+
+        if (estimated > 0)
+        {
+            _logger.LogDebug(
+                "Output tokens not in metadata, using estimation: {Estimated}",
+                estimated);
+        }
+
+        return estimated;
     }
 }

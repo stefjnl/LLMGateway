@@ -120,4 +120,53 @@ public class CostTrackingPluginTests
         var logs = await _logRepository.GetRecentAsync(1);
         logs.First().WasFallback.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task TrackCost_ReturnsCostValue()
+    {
+        // Arrange
+        var modelName = ModelDefaults.DefaultModel;
+        var inputTokens = 1_000_000;
+        var outputTokens = 1_000_000;
+
+        // Act
+        var returnedCost = await _plugin.TrackCostAsync(
+            modelName,
+            inputTokens,
+            outputTokens,
+            "OpenRouter",
+            1000,
+            wasFallback: false);
+
+        // Assert
+        returnedCost.Should().Be(0.0003m);
+    }
+
+    [Fact]
+    public async Task TrackCost_TrackingFailure_ReturnsZero()
+    {
+        // Arrange
+        var mockLogger = new Mock<ILogger<CostTrackingPlugin>>();
+        var mockLogRepo = new Mock<IRequestLogRepository>();
+        mockLogRepo
+            .Setup(x => x.SaveAsync(It.IsAny<RequestLog>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("Database error"));
+
+        var plugin = new CostTrackingPlugin(
+            mockLogRepo.Object,
+            _pricingRepository,
+            mockLogger.Object);
+
+        // Act
+        var returnedCost = await plugin.TrackCostAsync(
+            ModelDefaults.DefaultModel,
+            100,
+            200,
+            "OpenRouter",
+            1000,
+            wasFallback: false);
+
+        // Assert
+        returnedCost.Should().Be(0m);
+    }
 }

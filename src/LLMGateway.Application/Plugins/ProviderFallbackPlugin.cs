@@ -15,22 +15,59 @@ public class ProviderFallbackPlugin
     }
 
     [KernelFunction("get_fallback_model")]
-    public Task<string> GetFallbackModelAsync(string failedModel)
+    public Task<string> GetFallbackModelAsync(
+        string failedModel,
+        IReadOnlyList<string> attemptedModels)
     {
         var fallbackChain = ModelDefaults.FallbackChain;
-        var currentIndex = Array.IndexOf(fallbackChain, failedModel);
 
-        // Model not in chain or reached end of chain
-        if (currentIndex == -1 || currentIndex >= fallbackChain.Length - 1)
+        // Check if we've exhausted all options
+        if (attemptedModels.Count >= fallbackChain.Length)
         {
             _logger.LogError(
                 "All providers failed. Attempted models: {Models}",
-                string.Join(", ", fallbackChain));
+                string.Join(", ", attemptedModels));
 
-            throw new AllProvidersFailedException(fallbackChain);
+            throw new AllProvidersFailedException(attemptedModels.ToArray());
         }
 
-        var nextModel = fallbackChain[currentIndex + 1];
+        // Find next model that hasn't been attempted
+        string? nextModel = null;
+        var currentIndex = Array.IndexOf(fallbackChain, failedModel);
+
+        if (currentIndex == -1)
+        {
+            // Model not in chain - throw immediately
+            _logger.LogError(
+                "Unknown model {Model} not in fallback chain",
+                failedModel);
+
+            throw new AllProvidersFailedException(attemptedModels.ToArray());
+        }
+        else
+        {
+            // Try next models in chain (circular)
+            for (int i = 1; i <= fallbackChain.Length; i++)
+            {
+                var checkIndex = (currentIndex + i) % fallbackChain.Length;
+                var candidateModel = fallbackChain[checkIndex];
+
+                if (!attemptedModels.Contains(candidateModel))
+                {
+                    nextModel = candidateModel;
+                    break;
+                }
+            }
+        }
+
+        if (nextModel == null)
+        {
+            _logger.LogError(
+                "No untried models remaining. Attempted: {Models}",
+                string.Join(", ", attemptedModels));
+
+            throw new AllProvidersFailedException(attemptedModels.ToArray());
+        }
 
         _logger.LogWarning(
             "Falling back from {FailedModel} to {NextModel}",

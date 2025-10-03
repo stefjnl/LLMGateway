@@ -4,6 +4,7 @@ using LLMGateway.Application.DTOs;
 using LLMGateway.Application.Orchestration;
 using LLMGateway.Application.Plugins;
 using LLMGateway.Application.Tests.TestDoubles;
+using LLMGateway.Domain.Constants;
 using LLMGateway.Domain.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -146,5 +147,72 @@ public class KernelOrchestratorTests
                 It.IsAny<Kernel>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task SendChatCompletion_PopulatesEstimatedCost()
+    {
+        // Arrange
+        var command = new SendChatCompletionCommand(
+            Messages: new[]
+            {
+                new Message { Role = "user", Content = "Hello" }
+            },
+            Model: ModelDefaults.DefaultModel);
+
+        var mockResult = new ChatMessageContent(
+            AuthorRole.Assistant,
+            "Response")
+        {
+            Metadata = new Dictionary<string, object?>
+            {
+                ["input_tokens"] = 100_000,
+                ["output_tokens"] = 200_000
+            }
+        };
+
+        _mockCompletionService
+            .Setup(x => x.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(),
+                It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ChatMessageContent> { mockResult });
+
+        // Act
+        var response = await _orchestrator.SendChatCompletionAsync(command);
+
+        // Assert
+        response.EstimatedCostUsd.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task SendChatCompletion_MissingMetadata_StillCompletes()
+    {
+        // Arrange
+        var command = new SendChatCompletionCommand(
+            Messages: new[]
+            {
+                new Message { Role = "user", Content = "Hello" }
+            });
+
+        var mockResult = new ChatMessageContent(
+            AuthorRole.Assistant,
+            "Response with no metadata");
+        // No metadata set
+
+        _mockCompletionService
+            .Setup(x => x.GetChatMessageContentsAsync(
+                It.IsAny<ChatHistory>(),
+                It.IsAny<PromptExecutionSettings>(),
+                It.IsAny<Kernel>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ChatMessageContent> { mockResult });
+
+        // Act
+        var act = () => _orchestrator.SendChatCompletionAsync(command);
+
+        // Assert
+        await act.Should().NotThrowAsync();
     }
 }

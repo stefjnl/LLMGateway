@@ -69,4 +69,13 @@ public class RequestLog
 
     public TokenCount TotalTokens()
         => TokenCount.From(InputTokens.Value + OutputTokens.Value);
+
+    /// <summary>
+    /// Calculates tokens per second for observability
+    /// Simple calculation: total tokens ÷ response time in seconds
+    /// </summary>
+    public double TokensPerSecond =>
+        ResponseTime.TotalSeconds > 0
+            ? TotalTokens().Value / ResponseTime.TotalSeconds
+            : 0;
 }

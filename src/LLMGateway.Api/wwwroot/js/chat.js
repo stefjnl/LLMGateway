@@ -86,25 +86,8 @@ async function handleSendMessage() {
   setLoadingState(true);
 
   try {
-    const response = await sendChatRequest();
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(JSON.stringify(errorData));
-    }
-
-    const result = await response.json();
-
-    // Add assistant response to conversation
-    state.messages.push({ role: 'assistant', content: result.content });
-
-    // Update totals
-    state.totalTokens += result.tokensUsed;
-    state.totalCost += result.estimatedCostUsd;
-
-    // Display response
-    appendAssistantMessage(result);
-
+    // Use streaming endpoint for better user experience
+    await handleStreamingResponse();
   } catch (error) {
     handleApiError(error);
   } finally {
@@ -129,6 +112,119 @@ async function sendChatRequest() {
     },
     body: JSON.stringify(requestData)
   });
+}
+
+async function handleStreamingResponse() {
+  const requestData = {
+    messages: state.messages,
+    model: elements.modelSelect.value || undefined,
+    temperature: parseFloat(elements.temperatureSlider.value),
+    maxTokens: undefined // Let backend decide
+  };
+
+  // Create assistant message container for streaming
+  const assistantMessageElement = createStreamingAssistantMessage();
+  let accumulatedContent = '';
+  let streamingMetadata = null;
+  let timeoutId;
+
+  return new Promise((resolve, reject) => {
+    // Set up timeout for streaming (30 seconds)
+    timeoutId = setTimeout(() => {
+      reject(new Error('Streaming request timed out after 30 seconds'));
+    }, 30000);
+
+    // Send the request data
+    fetch('/v1/chat/completions/stream', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestData)
+    }).then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      function readStream() {
+        reader.read().then(({ done, value }) => {
+          if (done) {
+            clearTimeout(timeoutId);
+            finalizeStreamingMessage(accumulatedContent, streamingMetadata);
+            resolve();
+            return;
+          }
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const data = JSON.parse(line.substring(6));
+                
+                if (data.type === 'chunk' && data.content) {
+                  accumulatedContent += data.content;
+                  updateStreamingMessage(assistantMessageElement, accumulatedContent);
+                } else if (data.type === 'complete' && data.metadata) {
+                  streamingMetadata = data.metadata;
+                }
+              } catch (e) {
+                console.warn('Failed to parse streaming data:', line);
+              }
+            }
+          }
+
+          readStream();
+        }).catch(error => {
+          clearTimeout(timeoutId);
+          handleStreamingError(error, assistantMessageElement, accumulatedContent);
+          reject(error);
+        });
+      }
+
+      readStream();
+    }).catch(error => {
+      clearTimeout(timeoutId);
+      handleStreamingError(error, assistantMessageElement, accumulatedContent);
+      reject(error);
+    });
+  });
+}
+
+function handleStreamingError(error, messageElement, partialContent) {
+  console.error('Streaming error:', error);
+  
+  // Update the message to show error state
+  if (messageElement) {
+    const contentElement = messageElement.querySelector('p');
+    contentElement.innerHTML = `
+      <div class="text-red-400">
+        <strong>Streaming Error:</strong> ${error.message}
+        <br><br>
+        <em>Partial response:</em><br>
+        ${formatMarkdown(partialContent || 'No content received')}
+      </div>
+    `;
+
+    // Update metadata to show error
+    const metaSpans = messageElement.querySelectorAll('.font-mono');
+    metaSpans[0].textContent = 'Error';
+    metaSpans[1].textContent = '0';
+    metaSpans[2].textContent = '0.000000';
+
+    // Hide TPS metric
+    const tpsMetric = messageElement.querySelector('.tps-metric');
+    if (tpsMetric) {
+      tpsMetric.classList.add('hidden');
+    }
+  }
+
+  // Remove the loading indicator if it's still showing
+  removeLoadingIndicator();
 }
 
 // DOM Manipulation
@@ -161,6 +257,68 @@ function appendAssistantMessage(result) {
   metaSpans[2].textContent = result.estimatedCostUsd.toFixed(6);
 
   elements.chatContainer.appendChild(clone);
+  scrollToBottom();
+}
+
+function createStreamingAssistantMessage() {
+  const clone = templates.assistantMessage.content.cloneNode(true);
+  
+  // Clear initial content and metadata
+  clone.querySelector('p').innerHTML = '';
+  const metaSpans = clone.querySelectorAll('.font-mono');
+  metaSpans[0].textContent = '...';
+  metaSpans[1].textContent = '0';
+  metaSpans[2].textContent = '0.000000';
+  
+  // Hide TPS metric initially
+  const tpsMetric = clone.querySelector('.tps-metric');
+  if (tpsMetric) {
+    tpsMetric.classList.add('hidden');
+  }
+
+  elements.chatContainer.appendChild(clone);
+  scrollToBottom();
+  
+  return clone;
+}
+
+function updateStreamingMessage(messageElement, content) {
+  const contentElement = messageElement.querySelector('p');
+  contentElement.innerHTML = formatMarkdown(content);
+  scrollToBottom();
+}
+
+function finalizeStreamingMessage(content, metadata) {
+  // Find the last assistant message (the streaming one)
+  const assistantMessages = elements.chatContainer.querySelectorAll('.flex.justify-start');
+  const lastAssistantMessage = assistantMessages[assistantMessages.length - 1];
+  
+  if (!lastAssistantMessage || !metadata) return;
+
+  // Update final content
+  const contentElement = lastAssistantMessage.querySelector('p');
+  contentElement.innerHTML = formatMarkdown(content);
+
+  // Update metadata
+  const metaSpans = lastAssistantMessage.querySelectorAll('.font-mono');
+  metaSpans[0].textContent = metadata.model;
+  metaSpans[1].textContent = metadata.totalTokens.toLocaleString();
+  metaSpans[2].textContent = metadata.estimatedCostUsd.toFixed(6);
+
+  // Show and update TPS metric if available
+  const tpsMetric = lastAssistantMessage.querySelector('.tps-metric');
+  if (tpsMetric && metadata.averageTokensPerSecond > 0) {
+    const tpsSpan = tpsMetric.querySelector('.font-mono');
+    tpsSpan.textContent = metadata.averageTokensPerSecond.toFixed(1);
+    tpsMetric.classList.remove('hidden');
+  }
+
+  // Update state totals
+  state.messages.push({ role: 'assistant', content });
+  state.totalTokens += metadata.totalTokens;
+  state.totalCost += metadata.estimatedCostUsd;
+  updateUI();
+  
   scrollToBottom();
 }
 

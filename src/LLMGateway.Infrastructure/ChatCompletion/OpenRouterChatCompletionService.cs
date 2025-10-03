@@ -2,6 +2,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
+using System.Text;
+using System.Text.Json;
 
 namespace LLMGateway.Infrastructure.ChatCompletion;
 
@@ -113,15 +116,107 @@ public class OpenRouterChatCompletionService : IChatCompletionService
         ChatHistory chatHistory,
         PromptExecutionSettings? executionSettings = null,
         Kernel? kernel = null,
-        CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        // For MVP, implement non-streaming version first
-        // Streaming can be added later if needed
-        var results = await GetChatMessageContentsAsync(chatHistory, executionSettings, kernel, cancellationToken);
-        foreach (var result in results)
+        _logger.LogInformation("Starting OpenRouter streaming chat completion request");
+
+        // Extract model and temperature from execution settings
+        var model = "google/gemini-2.5-flash-lite-preview-09-2025";
+        var temperature = 0.7;
+
+        if (executionSettings?.ExtensionData != null)
         {
-            yield return new StreamingChatMessageContent(result.Role, result.Content ?? string.Empty);
+            // Try both "ModelId" (from SK) and "model" (OpenRouter format)
+            if (executionSettings.ExtensionData.TryGetValue("ModelId", out var modelValue) && modelValue is string modelStr)
+            {
+                model = modelStr;
+            }
+            else if (executionSettings.ExtensionData.TryGetValue("model", out var modelValue2) && modelValue2 is string modelStr2)
+            {
+                model = modelStr2;
+            }
+            
+            if (executionSettings.ExtensionData.TryGetValue("temperature", out var tempValue) && tempValue is double tempDouble)
+            {
+                temperature = tempDouble;
+            }
         }
+
+        _logger.LogInformation("Using streaming model: {Model}, temperature: {Temperature}", model, temperature);
+
+        // Build OpenRouter streaming request
+        var request = new OpenRouterRequest
+        {
+            Model = model,
+            Messages = chatHistory.Select(m => new OpenRouterMessage
+            {
+                Role = m.Role.ToString().ToLower(),
+                Content = m.Content ?? string.Empty
+            }).ToArray(),
+            Temperature = temperature,
+            MaxTokens = 2000, // Default max tokens
+            Stream = true // Enable streaming
+        };
+
+        // Create HTTP request with streaming
+        var requestJson = JsonSerializer.Serialize(request, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+
+        var httpRequest = new HttpRequestMessage(HttpMethod.Post, "chat/completions")
+        {
+            Content = new StringContent(requestJson, Encoding.UTF8, "application/json")
+        };
+
+        using var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        response.EnsureSuccessStatusCode();
+
+        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var reader = new StreamReader(stream);
+
+        var totalTokens = 0;
+        var buffer = new StringBuilder();
+
+        while (!reader.EndOfStream && !cancellationToken.IsCancellationRequested)
+        {
+            var line = await reader.ReadLineAsync(cancellationToken);
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            if (line.StartsWith("data: "))
+            {
+                var data = line.Substring(6);
+                if (data == "[DONE]")
+                    break;
+
+                var chunk = JsonSerializer.Deserialize<OpenRouterStreamResponse>(data, new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                });
+
+                if (chunk?.Choices?.Length > 0)
+                {
+                    var choice = chunk.Choices[0];
+                    if (choice.Delta?.Content != null)
+                    {
+                        totalTokens++;
+                        yield return new StreamingChatMessageContent(
+                            AuthorRole.Assistant,
+                            choice.Delta.Content,
+                            choice.Delta.Content,
+                            metadata: new Dictionary<string, object?>
+                            {
+                                ["input_tokens"] = chunk.Usage?.PromptTokens ?? 0,
+                                ["output_tokens"] = chunk.Usage?.CompletionTokens ?? totalTokens,
+                                ["model"] = chunk.Model
+                            });
+                    }
+                }
+            }
+        }
+
+        _logger.LogInformation("Streaming completed with {TotalTokens} tokens", totalTokens);
     }
 }
 
@@ -151,6 +246,7 @@ public class OpenRouterRequest
     public required OpenRouterMessage[] Messages { get; set; }
     public double Temperature { get; set; } = 0.7;
     public int MaxTokens { get; set; } = 2000;
+    public bool Stream { get; set; } = false;
 }
 
 /// <summary>
@@ -190,4 +286,34 @@ public class OpenRouterUsage
     public int PromptTokens { get; set; }
     public int CompletionTokens { get; set; }
     public int TotalTokens { get; set; }
+}
+
+/// <summary>
+/// OpenRouter streaming response format
+/// </summary>
+public class OpenRouterStreamResponse
+{
+    public string? Id { get; set; }
+    public string? Model { get; set; }
+    public OpenRouterStreamChoice[]? Choices { get; set; }
+    public OpenRouterUsage? Usage { get; set; }
+}
+
+/// <summary>
+/// OpenRouter streaming choice format
+/// </summary>
+public class OpenRouterStreamChoice
+{
+    public int Index { get; set; }
+    public OpenRouterStreamDelta? Delta { get; set; }
+    public string? FinishReason { get; set; }
+}
+
+/// <summary>
+/// OpenRouter streaming delta format
+/// </summary>
+public class OpenRouterStreamDelta
+{
+    public string? Role { get; set; }
+    public string? Content { get; set; }
 }

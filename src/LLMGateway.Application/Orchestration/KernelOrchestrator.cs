@@ -9,6 +9,7 @@ using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using System.Diagnostics;
 using System.Net;
+using System.Runtime.CompilerServices;
 
 namespace LLMGateway.Application.Orchestration;
 
@@ -78,6 +79,64 @@ public class KernelOrchestrator(
         }
     }
 
+    public async IAsyncEnumerable<StreamingChatResponse> SendStreamingChatCompletionAsync(
+        SendChatCompletionCommand command,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var stopwatch = Stopwatch.StartNew();
+
+        // Validate command
+        command.Validate();
+
+        var kernel = kernelFactory.CreateWithPlugins();
+
+        // Step 1: Estimate tokens and select model
+        var estimatedTokens = EstimateTokens(command.Messages);
+        var selectedModel = await modelSelection.SelectModelAsync(
+            estimatedTokens,
+            command.Model);
+
+        // Step 2: Call streaming completion service with retry/fallback
+        var (finalModel, attempts, totalTokens) = await ExecuteStreamingWithFallbackCountAsync(
+            kernel,
+            command,
+            selectedModel.Value,
+            cancellationToken);
+
+        stopwatch.Stop();
+
+        // Step 3: Track cost
+        var estimatedCost = await costTracking.TrackCostAsync(
+            finalModel,
+            ExtractInputTokensFromCommand(command),
+            totalTokens,
+            providerConfig.ProviderName,
+            stopwatch.ElapsedMilliseconds,
+            wasFallback: attempts > 1,
+            cancellationToken);
+
+        // Step 4: Send final metadata
+        var responseTimeMs = stopwatch.ElapsedMilliseconds;
+        var avgTokensPerSecond = responseTimeMs > 0
+            ? (totalTokens * 1000.0) / responseTimeMs
+            : 0;
+
+        yield return new StreamingChatResponse
+        {
+            Type = "complete",
+            Metadata = new StreamingMetadata
+            {
+                Content = string.Empty, // Content is streamed as chunks
+                Model = finalModel,
+                TotalTokens = totalTokens,
+                ResponseTimeMs = responseTimeMs,
+                AverageTokensPerSecond = avgTokensPerSecond,
+                EstimatedCostUsd = estimatedCost,
+                Provider = providerConfig.ProviderName
+            }
+        };
+    }
+
     private async Task<(ChatMessageContent result, string model, int attempts)> ExecuteWithFallbackAsync(
         Kernel kernel,
         SendChatCompletionCommand command,
@@ -127,6 +186,206 @@ public class KernelOrchestrator(
                 logger.LogWarning(
                     ex,
                     "Transient error on attempt {Attempt}/{MaxAttempts} for model {Model}",
+                    attempts,
+                    maxAttempts,
+                    currentModel);
+
+                // Get fallback model with attempt history
+                currentModel = await providerFallback.GetFallbackModelAsync(
+                    currentModel,
+                    attemptedModels);
+            }
+        }
+
+        throw new AllProvidersFailedException(attemptedModels);
+    }
+
+    public async IAsyncEnumerable<StreamingChatResponse> SendStreamingChatCompletionWithChunksAsync(
+        SendChatCompletionCommand command,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var totalTokens = 0;
+        string finalModel = string.Empty;
+        var attempts = 0;
+
+        // Validate command
+        command.Validate();
+
+        var kernel = kernelFactory.CreateWithPlugins();
+
+        // Step 1: Estimate tokens and select model
+        var estimatedTokens = EstimateTokens(command.Messages);
+        var selectedModel = await modelSelection.SelectModelAsync(
+            estimatedTokens,
+            command.Model);
+
+        // Step 2: Call streaming completion service with retry/fallback
+        await foreach (var response in ExecuteStreamingWithFallbackAsync(
+            kernel,
+            command,
+            selectedModel.Value,
+            cancellationToken))
+        {
+            if (response.Type == "chunk")
+            {
+                totalTokens++;
+                yield return response;
+            }
+            else if (response.Type == "complete")
+            {
+                finalModel = response.Metadata?.Model ?? string.Empty;
+                attempts = 1; // Will be updated if fallback occurred
+            }
+        }
+
+        stopwatch.Stop();
+
+        // Step 3: Track cost
+        var estimatedCost = await costTracking.TrackCostAsync(
+            finalModel,
+            ExtractInputTokensFromCommand(command),
+            totalTokens,
+            providerConfig.ProviderName,
+            stopwatch.ElapsedMilliseconds,
+            wasFallback: attempts > 1,
+            cancellationToken);
+
+        // Step 4: Send final metadata
+        var responseTimeMs = stopwatch.ElapsedMilliseconds;
+        var avgTokensPerSecond = responseTimeMs > 0
+            ? (totalTokens * 1000.0) / responseTimeMs
+            : 0;
+
+        yield return new StreamingChatResponse
+        {
+            Type = "complete",
+            Metadata = new StreamingMetadata
+            {
+                Content = string.Empty, // Content is streamed as chunks
+                Model = finalModel,
+                TotalTokens = totalTokens,
+                ResponseTimeMs = responseTimeMs,
+                AverageTokensPerSecond = avgTokensPerSecond,
+                EstimatedCostUsd = estimatedCost,
+                Provider = providerConfig.ProviderName
+            }
+        };
+    }
+
+    private async IAsyncEnumerable<StreamingChatResponse> ExecuteStreamingWithFallbackAsync(
+        Kernel kernel,
+        SendChatCompletionCommand command,
+        string initialModel,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var currentModel = initialModel;
+        var attempts = 0;
+        var maxAttempts = 3;
+        var attemptedModels = new List<string>();
+
+        while (attempts < maxAttempts)
+        {
+            attempts++;
+            attemptedModels.Add(currentModel);
+
+            var chatHistory = BuildChatHistory(command.Messages);
+            var completionService = kernel.GetRequiredService<IChatCompletionService>();
+
+            var executionSettings = new PromptExecutionSettings
+            {
+                ModelId = currentModel,
+                ExtensionData = new Dictionary<string, object>
+                {
+                    ["temperature"] = (double)(command.Temperature ?? ModelDefaults.DefaultTemperature),
+                    ["max_tokens"] = command.MaxTokens ?? ModelDefaults.DefaultMaxTokens
+                }
+            };
+
+            await foreach (var chunk in completionService.GetStreamingChatMessageContentsAsync(
+                chatHistory,
+                executionSettings,
+                kernel,
+                cancellationToken))
+            {
+                if (!string.IsNullOrEmpty(chunk.Content))
+                {
+                    yield return new StreamingChatResponse
+                    {
+                        Type = "chunk",
+                        Content = chunk.Content
+                    };
+                }
+            }
+
+            // Signal completion with model info
+            yield return new StreamingChatResponse
+            {
+                Type = "complete",
+                Metadata = new StreamingMetadata
+                {
+                    Model = currentModel,
+                    Provider = providerConfig.ProviderName
+                }
+            };
+
+            yield break; // Success, exit the retry loop
+        }
+
+        throw new AllProvidersFailedException(attemptedModels);
+    }
+
+    private async Task<(string model, int attempts, int totalTokens)> ExecuteStreamingWithFallbackCountAsync(
+        Kernel kernel,
+        SendChatCompletionCommand command,
+        string initialModel,
+        CancellationToken cancellationToken)
+    {
+        var currentModel = initialModel;
+        var attempts = 0;
+        var maxAttempts = 3;
+        var attemptedModels = new List<string>();
+        var totalTokens = 0;
+
+        while (attempts < maxAttempts)
+        {
+            attempts++;
+            attemptedModels.Add(currentModel);
+
+            try
+            {
+                var chatHistory = BuildChatHistory(command.Messages);
+                var completionService = kernel.GetRequiredService<IChatCompletionService>();
+
+                var executionSettings = new PromptExecutionSettings
+                {
+                    ModelId = currentModel,
+                    ExtensionData = new Dictionary<string, object>
+                    {
+                        ["temperature"] = (double)(command.Temperature ?? ModelDefaults.DefaultTemperature),
+                        ["max_tokens"] = command.MaxTokens ?? ModelDefaults.DefaultMaxTokens
+                    }
+                };
+
+                await foreach (var chunk in completionService.GetStreamingChatMessageContentsAsync(
+                    chatHistory,
+                    executionSettings,
+                    kernel,
+                    cancellationToken))
+                {
+                    if (!string.IsNullOrEmpty(chunk.Content))
+                    {
+                        totalTokens++;
+                    }
+                }
+
+                return (currentModel, attempts, totalTokens);
+            }
+            catch (Exception ex) when (IsTransientError(ex) && attempts < maxAttempts)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Transient error on streaming attempt {Attempt}/{MaxAttempts} for model {Model}",
                     attempts,
                     maxAttempts,
                     currentModel);
@@ -236,5 +495,12 @@ public class KernelOrchestrator(
         }
 
         return estimated;
+    }
+
+    private int ExtractInputTokensFromCommand(SendChatCompletionCommand command)
+    {
+        // For now, estimate from the command messages
+        // This will be refined in future iterations
+        return EstimateTokens(command.Messages);
     }
 }

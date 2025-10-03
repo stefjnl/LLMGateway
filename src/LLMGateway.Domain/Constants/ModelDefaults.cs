@@ -11,12 +11,12 @@ public static class ModelDefaults
     public const int StandardContextLimit = 10_000;
     public const int LargeContextLimit = 200_000;
 
-    // Fallback chain (circular with cycle detection)
+    // Fallback chain (ordered from slow/large to fast/small for fallback priority)
     public static readonly string[] FallbackChain = new[]
     {
-        DefaultModel,
+        LargeContextModel,
         BalancedModel,
-        LargeContextModel
+        DefaultModel
     };
 
     // Default request parameters

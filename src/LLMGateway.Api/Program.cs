@@ -42,9 +42,26 @@ builder.Services.AddSwaggerGen();
 // Register health checks
 builder.Services.AddHealthChecks();
 
+// Add CORS policy for web UI
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowWebUI", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+
+// Enable static files (must be before other middleware)
+app.UseStaticFiles();
+
+// CORS middleware
+app.UseCors("AllowWebUI");
 
 // Exception handling middleware (must be first)
 app.UseExceptionHandling();
@@ -74,6 +91,9 @@ app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.Health
 {
     Predicate = hc => hc.Name == "database" || hc.Name == "openrouter" // Only critical dependencies
 });
+
+// Serve index.html at root
+app.MapGet("/", () => Results.Redirect("/index.html"));
 
 // Swagger UI (Development only)
 if (app.Environment.IsDevelopment())

@@ -1,0 +1,128 @@
+/* Custom utility classes */
+
+/* Shadows */
+.shadow-modern-sm { box-shadow: var(--shadow-modern-sm); }
+.shadow-modern-md { box-shadow: var(--shadow-modern-md); }
+.shadow-modern-lg { box-shadow: var(--shadow-modern-lg); }
+.shadow-modern-xl { box-shadow: var(--shadow-modern-xl); }
+
+/* Gradients */
+.bg-gradient-primary { background: var(--gradient-primary); }
+.bg-gradient-secondary { background: var(--gradient-secondary); }
+.bg-gradient-dark { background: var(--gradient-dark); }
+.bg-gradient-success { background: var(--gradient-success); }
+.bg-gradient-error { background: var(--gradient-error); }
+
+/* Text gradients */
+.text-gradient-primary {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-secondary {
+  background: var(--gradient-secondary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Border radius */
+.rounded-modern-sm { border-radius: var(--radius-sm); }
+.rounded-modern-md { border-radius: var(--radius-md); }
+.rounded-modern-lg { border-radius: var(--radius-lg); }
+.rounded-modern-xl { border-radius: var(--radius-xl); }
+.rounded-modern-2xl { border-radius: var(--radius-2xl); }
+
+/* Transitions */
+.transition-modern-fast { transition: var(--transition-fast); }
+.transition-modern-normal { transition: var(--transition-normal); }
+.transition-modern-slow { transition: var(--transition-slow); }
+
+/* Backdrop blur */
+.backdrop-blur-modern { backdrop-filter: blur(12px); }
+
+/* Custom scrollbar for chat container */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-dark) var(--color-bg-dark);
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: var(--color-bg-dark);
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--color-border-dark);
+  border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* Focus ring */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-slate-900;
+}
+
+/* Button variants */
+.btn-primary {
+  @apply px-4 py-2 bg-gradient-primary text-white rounded-modern-md shadow-modern-md
+         hover:shadow-modern-lg transition-modern-normal transform hover:-translate-y-0.5
+         focus-ring disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none;
+}
+
+.btn-secondary {
+  @apply px-4 py-2 bg-slate-700 text-white border border-slate-600 rounded-modern-md
+         shadow-modern-sm hover:bg-slate-600 hover:shadow-modern-md transition-modern-normal
+         focus-ring disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-ghost {
+  @apply px-4 py-2 text-gray-400 hover:text-white hover:bg-slate-700 rounded-modern-md
+         transition-modern-normal focus-ring disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+/* Input variants */
+.input-primary {
+  @apply w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-modern-md
+         text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:outline-none
+         focus:border-blue-500;
+}
+
+.input-multiline {
+  @apply input-primary resize-none;
+}
+
+/* Card variants */
+.card-modern {
+  @apply bg-slate-800/50 backdrop-blur-modern border border-white/10 rounded-modern-xl
+         shadow-modern-lg;
+}
+
+.card-message-user {
+  @apply bg-gradient-primary text-white rounded-modern-2xl p-4 shadow-modern-lg;
+}
+
+.card-message-assistant {
+  @apply bg-gradient-dark text-white rounded-modern-2xl p-4 shadow-modern-lg;
+}
+
+/* Status indicators */
+.status-healthy {
+  @apply w-3 h-3 rounded-full bg-green-500 animate-pulse;
+}
+
+.status-unhealthy {
+  @apply w-3 h-3 rounded-full bg-red-500;
+}
+
+.status-loading {
+  @apply w-3 h-3 rounded-full bg-yellow-500 animate-spin;
+}

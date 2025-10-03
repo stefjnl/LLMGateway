@@ -78,12 +78,91 @@ tests/
 # Restore packages
 dotnet restore
 
-# Run with Aspire
+# Run API server
+dotnet run --project src/LLMGateway.Api
+
+# Access Swagger UI
+open http://localhost:5047/swagger
+
+# Or run with Aspire (includes database)
 dotnet run --project src/LLMGateway.AppHost
 
 # Access Aspire dashboard
 open http://localhost:15500
 ```
+
+## API Documentation
+
+### Endpoints
+
+#### POST /v1/ChatCompletion
+Send a chat completion request to the LLM Gateway.
+
+**Request Body:**
+```json
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hello, world!"
+    }
+  ],
+  "model": "optional-model-name",
+  "temperature": 0.7,
+  "maxTokens": 100
+}
+```
+
+**Response:**
+```json
+{
+  "content": "Hello! How can I help you today?",
+  "model": "z-ai/glm-4.6",
+  "tokensUsed": 25,
+  "estimatedCostUsd": 0.000001,
+  "responseTime": "00:00:01.234"
+}
+```
+
+**Error Response:**
+```json
+{
+  "type": "https://tools.ietf.org/html/rfc7231#section-6.5.1",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "The Messages field is required.",
+  "correlationId": "abc-123-def-456"
+}
+```
+
+#### GET /health
+Basic liveness probe.
+
+**Response:** `Healthy`
+
+#### GET /health/ready
+Readiness probe checking database and external services.
+
+**Response:** `Healthy` or `Unhealthy` with detailed status.
+
+### Configuration
+
+Set your OpenRouter API key:
+
+```bash
+# Using User Secrets (recommended)
+dotnet user-secrets set "OpenRouter:ApiKey" "sk-or-v1-..."
+
+# Or using environment variables
+export OpenRouter__ApiKey="sk-or-v1-..."
+```
+
+### Health Checks
+
+The API includes comprehensive health checks:
+- **Database**: PostgreSQL connectivity
+- **OpenRouter**: Provider availability
+- **Readiness**: All dependencies healthy
 
 ## Architecture Decisions
 

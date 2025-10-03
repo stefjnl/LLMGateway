@@ -1,0 +1,63 @@
+:root {
+  /* Gradient backgrounds */
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-secondary: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  --gradient-dark: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  --gradient-error: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+
+  /* VS Code-inspired dark theme */
+  --color-bg-dark: #1e1e1e;
+  --color-surface-dark: #252526;
+  --color-surface-darker: #2d2d30;
+  --color-border-dark: #3e3e42;
+  --color-border-light: #454545;
+  --color-text-dark: #d4d4d4;
+  --color-text-muted: #cccccc;
+  --color-text-subtle: #8c8c8c;
+
+  /* Status colors */
+  --color-success: #10b981;
+  --color-error: #ef4444;
+  --color-warning: #f59e0b;
+  --color-info: #3b82f6;
+
+  /* Message colors */
+  --color-user-bg: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  --color-assistant-bg: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+
+  /* Shadows */
+  --shadow-modern-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-modern-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-modern-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-modern-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+
+  /* Spacing */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+
+  /* Border radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+
+  /* Transitions */
+  --transition-fast: 150ms ease-in-out;
+  --transition-normal: 300ms ease-in-out;
+  --transition-slow: 500ms ease-in-out;
+
+  /* Z-index layers */
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+}
